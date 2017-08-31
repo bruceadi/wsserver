@@ -1,0 +1,68 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <title>EMSX monitor</title>
+
+
+    <script src="jquery-min.js" type="text/javascript"></script>
+    <script type="text/javascript">
+      
+      var ws = undefined;
+var ws_url="ws://10.86.9.62:30001";
+      $(function (){
+         if ("WebSocket" in window) {
+          ws = new WebSocket(ws_url);
+        }
+        else if("MozWebSocket" in window) {
+          ws = new MozWebSocket(ws_url);
+        }
+        ws.onopen = WSonOpen;
+        ws.onmessage = WSonMessage;
+        ws.onclose = WSonClose;
+        ws.onerror = WSonError;
+        $("#result").html("");
+      }
+      );
+      
+      function WSonOpen() { 
+         $("#connection_status").html("Status: <span style='color: green;'>" + "connected" + "</span>");                  
+      }
+
+      function WSonMessage(event) {
+        $("#result").prepend("<br/>");
+        $("#result").prepend(event.data);
+      }
+
+      function WSonClose() {
+          status = 0;
+          ws = undefined;
+          $("#connection_status").html("Status: <span style='color: red;'>" + "disconnected" + "</span>");
+      }
+
+      function WSonError() {               
+          $("#connection_status").text("Status: <span style='color: red;'>" + "error" + "</span>");
+      }
+
+    $( function() {          
+        var WebSocketsExist = false;
+         if ("WebSocket" in window || "MozWebSocket" in window) {
+          WebSocketsExist = true;
+        }  
+        if (!WebSocketsExist) {          
+          $("#result").text("your browser does not support webSocket");
+          $("#ToggleConnection").attr("disabled","disabled");
+        }              
+      });
+
+    </script>
+</head>
+<body> 
+    <div style="margin: 0 100px;"> 
+      <span id='connection_status'>
+         Status: <span style="color:red">disconnected</span>
+      </span>
+      <div id='result'>        
+      </div>       
+    </div>
+</body>
+</html>
