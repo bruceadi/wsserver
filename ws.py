@@ -58,20 +58,23 @@ def session():
                 cmd,fn,http_version= iter(item.split())
                 if cmd == "GET" and  fn != "/":
                   tmp = yield "http", make_http_response(http_version, fn[1:])
+                  if tmp: data = data + tmp
           if "Sec-WebSocket-Key" in hdr_map:           
             Sec_WebSocket_Key = hdr_map["Sec-WebSocket-Key"]
             hash_value = hashlib.sha1(Sec_WebSocket_Key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest()
             Sec_WebSocket_Accept = base64.b64encode(hash_value)
             handshaked = True
             tmp = yield "websocket", handshake.format(Sec_WebSocket_Accept)
-      else: tmp = yield None, None
-      data = data + tmp
+            if tmp: data = data + tmp
+      else: 
+        tmp = yield None, None
+        if tmp: data = data + tmp
 
   msg = ''
   while 1:
     while len(data) < 2:
        tmp = yield  None  
-    if tmp: data = data + tmp
+       if tmp: data = data + tmp
     opcode = ord(data[0]) & 0xf
     fin = (ord(data[0]) & 0x80) == 0x80
     mask_flag = (ord(data[1]) & 0x80) == 0x80
@@ -94,7 +97,6 @@ def session():
     while len(data) < required_len:
       tmp = yield  None
       if tmp: data = data + tmp
-
     if mask_flag:
         mask = data[off:off + 4]
         received = []
@@ -111,11 +113,10 @@ def session():
       if opcode != 0x8:
         tmp = yield msg 
       else: tmp = yield None
-
       if tmp: data = data + tmp
       msg = '' 
  
-class Server:
+class Server(object):
    def __init__(self, ip, port):
 
      self.ctx = zmq.Context()   
@@ -135,8 +136,12 @@ class Server:
         gen.send(None)
     else:
       if id_frame in self.websockets: #already in ready websocket 
-         msg = self.clients[id_frame].send(data_frame)
-         if msg: self.on_data(id_frame, msg)
+         while 1:
+           msg = self.clients[id_frame].send(data_frame)
+           if msg: 
+             self.on_data(id_frame, msg)
+             data_frame = None
+           else: break
       else:
         tp, rsp = self.clients[id_frame].send(data_frame)   
         if rsp:
@@ -154,10 +159,10 @@ class Server:
 
    def send(self, id_frame, data):
       self.sock.send(id_frame, zmq.SNDMORE |  zmq.NOBLOCK)
-      self.sock.send(self.make_websocket_frame(rsp), zmq.SNDMORE | zmq.NOBLOCK)
+      self.sock.send(self.make_websocket_frame(data), zmq.SNDMORE | zmq.NOBLOCK)
 
    def on_data(self, id_frame, data):
-       print repr(data)
+      pass
    def loop(self):
     poller = zmq.Poller()
     poller.register(self.sock, flags=zmq.POLLIN)
@@ -170,7 +175,7 @@ class Server:
 
 if __name__ == "__main__":
   ip = "127.0.0.1"
-  port = 30001
+  port = 9981
   with open("index.html") as fp:
      index_page =[line for line in fp] 
    
